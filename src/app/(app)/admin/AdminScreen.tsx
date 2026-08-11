@@ -173,7 +173,15 @@ function Overview({
   );
 }
 
-/* ---------- Offices ---------- */
+/* ---------- Offices (full property manager for super admins) ---------- */
+const IMG_OPTIONS = [
+  "/assets/office-luxury.png",
+  "/assets/office-economic.png",
+  "/assets/office-glass.png",
+  "/assets/office-team.png",
+  "/assets/lounge.png",
+];
+
 function Offices({
   towers, offices, edit, t, lang,
 }: {
@@ -181,56 +189,284 @@ function Offices({
   t: ReturnType<typeof useLang>["t"]; lang: string;
 }) {
   const supabase = useSupabase();
-  const [rows, setRows] = useState<Office[]>(offices);
+  const ar = lang === "ar";
+  const [towerList, setTowerList] = useState<Tower[]>(towers);
+  const [officeList, setOfficeList] = useState<Office[]>(offices);
 
-  async function setRent(id: string, val: string) {
-    setRows((r) => r.map((o) => (o.id === id ? { ...o, monthly_rent: val } : o)));
-    await supabase.from("offices").update({ monthly_rent: Number(val) || 0 }).eq("id", id);
+  // Micro-labels for the management controls (staff-facing, kept bilingual-lite).
+  const L = ar
+    ? { addProp: "+ إضافة عقار", delProp: "حذف العقار", addOff: "+ إضافة مكتب", unit: "رقم", size: "م²", rent: "الإيجار", tenant: "المستأجر", nameEn: "الاسم (EN)", nameAr: "الاسم (AR)", price: "نطاق السعر", img: "الصورة", save: "إضافة", confirmProp: "حذف هذا العقار وكل مكاتبه؟", confirmOff: "حذف هذا المكتب؟", empty: "لا مكاتب بعد", available: t.available, rented: t.rented }
+    : { addProp: "+ Add property", delProp: "Delete property", addOff: "+ Add office", unit: "Unit", size: "m²", rent: "Rent", tenant: "Tenant", nameEn: "Name (EN)", nameAr: "Name (AR)", price: "Price range", img: "Photo", save: "Add", confirmProp: "Delete this property and all its offices?", confirmOff: "Delete this office?", empty: "No offices yet", available: t.available, rented: t.rented };
+
+  // ----- tower ops -----
+  async function updateTower(id: string, patch: Partial<Tower>) {
+    setTowerList((l) => l.map((tw) => (tw.id === id ? { ...tw, ...patch } : tw)));
+    await supabase.from("towers").update(patch).eq("id", id);
+  }
+  async function addTower(draft: Partial<Tower>) {
+    const id = crypto.randomUUID();
+    const row = {
+      id,
+      name_en: draft.name_en || "New property",
+      name_ar: draft.name_ar || draft.name_en || "عقار جديد",
+      tier_en: "NEW", tier_ar: "جديد",
+      sub_en: "", sub_ar: "",
+      price_label_en: draft.price_label_en || "", price_label_ar: draft.price_label_ar || draft.price_label_en || "",
+      image: draft.image || IMG_OPTIONS[0],
+      units_total: 0, units_available: 0, sort: (towerList.at(-1)?.sort ?? 0) + 1,
+    };
+    const { data, error } = await supabase.from("towers").insert(row).select("*").single();
+    if (!error && data) setTowerList((l) => [...l, data as Tower]);
+  }
+  async function deleteTower(id: string) {
+    if (!confirm(L.confirmProp)) return;
+    const { error } = await supabase.from("towers").delete().eq("id", id);
+    if (!error) {
+      setTowerList((l) => l.filter((tw) => tw.id !== id));
+      setOfficeList((l) => l.filter((o) => o.tower_id !== id));
+    }
+  }
+
+  // ----- office ops -----
+  async function updateOffice(id: string, patch: Record<string, unknown>) {
+    setOfficeList((l) => l.map((o) => (o.id === id ? ({ ...o, ...patch } as Office) : o)));
+    await supabase.from("offices").update(patch).eq("id", id);
+  }
+  async function addOffice(towerId: string, draft: { unit_no: string; size_m2: string; monthly_rent: string; status: string }) {
+    if (!draft.unit_no) return;
+    const row = {
+      id: crypto.randomUUID(),
+      tower_id: towerId,
+      unit_no: draft.unit_no,
+      size_m2: Number(draft.size_m2) || null,
+      monthly_rent: Number(draft.monthly_rent) || null,
+      status: draft.status === "rented" ? "rented" : "available",
+      sort: officeList.filter((o) => o.tower_id === towerId).length + 1,
+    };
+    const { data, error } = await supabase.from("offices").insert(row).select("*").single();
+    if (!error && data) setOfficeList((l) => [...l, data as Office]);
+  }
+  async function deleteOffice(id: string) {
+    if (!confirm(L.confirmOff)) return;
+    const { error } = await supabase.from("offices").delete().eq("id", id);
+    if (!error) setOfficeList((l) => l.filter((o) => o.id !== id));
   }
 
   return (
     <div className="flex flex-col gap-3">
-      {towers.map((tw) => {
-        const units = rows.filter((o) => o.tower_id === tw.id);
+      {edit && <AddPropertyForm labels={L} onAdd={addTower} />}
+
+      {towerList.map((tw) => {
+        const units = officeList.filter((o) => o.tower_id === tw.id);
         const rented = units.filter((o) => o.status === "rented").length;
         return (
           <div key={tw.id} className="flex flex-col gap-2.5 rounded-2xl border border-hair bg-surface p-3.5">
-            <div className="flex items-baseline justify-between">
-              <span className="font-display text-[15px] font-semibold">
-                {lang === "ar" ? tw.name_ar : tw.name_en}
-              </span>
-              <span className="text-[10.5px] font-semibold text-accent">
-                {rented}/{units.length} {t.rented}
-              </span>
-            </div>
-            {units.map((u) => (
-              <div key={u.id} className="flex items-center gap-2.5 border-t border-hair pt-2.5">
-                <span className="w-9 flex-none text-[11.5px] font-bold">{u.unit_no}</span>
-                <span className="flex-1 text-[11px] text-muted">
-                  {u.size_m2} m² · {u.tenant_name || "—"}
+            {/* header */}
+            <div className="flex items-start justify-between gap-2">
+              {edit ? (
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <input
+                    defaultValue={tw.name_en ?? ""}
+                    onBlur={(e) => updateTower(tw.id, { name_en: e.target.value })}
+                    className="rounded-lg border border-hair px-2 py-1.5 font-display text-[14px] font-semibold"
+                  />
+                  <div className="flex gap-1.5">
+                    <input
+                      defaultValue={tw.name_ar ?? ""}
+                      onBlur={(e) => updateTower(tw.id, { name_ar: e.target.value })}
+                      className="flex-1 rounded-lg border border-hair px-2 py-1.5 text-[12px]"
+                      dir="rtl"
+                    />
+                    <select
+                      defaultValue={tw.image ?? IMG_OPTIONS[0]}
+                      onChange={(e) => updateTower(tw.id, { image: e.target.value })}
+                      className="w-24 rounded-lg border border-hair px-1 py-1.5 text-[10px]"
+                    >
+                      {IMG_OPTIONS.map((src) => (
+                        <option key={src} value={src}>
+                          {src.split("/").pop()?.replace(".png", "")}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <input
+                      defaultValue={tw.price_label_en ?? ""}
+                      onBlur={(e) => updateTower(tw.id, { price_label_en: e.target.value })}
+                      placeholder={`${L.price} (EN)`}
+                      className="flex-1 rounded-lg border border-hair px-2 py-1.5 text-[11px]"
+                    />
+                    <input
+                      defaultValue={tw.price_label_ar ?? ""}
+                      onBlur={(e) => updateTower(tw.id, { price_label_ar: e.target.value })}
+                      placeholder={`${L.price} (AR)`}
+                      className="flex-1 rounded-lg border border-hair px-2 py-1.5 text-[11px]"
+                      dir="rtl"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <span className="font-display text-[15px] font-semibold">{ar ? tw.name_ar : tw.name_en}</span>
+              )}
+              <div className="flex flex-none flex-col items-end gap-1.5">
+                <span className="text-[10.5px] font-semibold text-accent">
+                  {rented}/{units.length} {L.rented}
                 </span>
-                {edit ? (
+                {edit && (
+                  <button
+                    onClick={() => deleteTower(tw.id)}
+                    className="rounded-full border border-edit px-2 py-1 text-[9.5px] font-semibold text-edit"
+                  >
+                    {L.delProp}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* offices */}
+            {units.length === 0 && edit && <div className="text-[11px] text-muted">{L.empty}</div>}
+            {units.map((u) =>
+              edit ? (
+                <div key={u.id} className="flex items-center gap-1.5 border-t border-hair pt-2.5">
+                  <input
+                    defaultValue={u.unit_no}
+                    onBlur={(e) => updateOffice(u.id, { unit_no: e.target.value })}
+                    className="w-12 rounded-lg border border-hair px-1.5 py-1.5 text-[11px] font-bold"
+                  />
+                  <input
+                    defaultValue={u.size_m2 ?? ""}
+                    onBlur={(e) => updateOffice(u.id, { size_m2: Number(e.target.value) || null })}
+                    placeholder={L.size}
+                    className="w-12 rounded-lg border border-hair px-1.5 py-1.5 text-[11px]"
+                  />
                   <input
                     defaultValue={u.monthly_rent ?? ""}
-                    onBlur={(e) => setRent(u.id, e.target.value)}
-                    className="w-20 rounded-lg border border-hair px-2 py-1.5 text-[11px] font-semibold"
+                    onBlur={(e) => updateOffice(u.id, { monthly_rent: Number(e.target.value) || null })}
+                    placeholder={L.rent}
+                    className="w-16 rounded-lg border border-hair px-1.5 py-1.5 text-[11px] font-semibold"
                   />
-                ) : (
+                  <input
+                    defaultValue={u.tenant_name ?? ""}
+                    onBlur={(e) => updateOffice(u.id, { tenant_name: e.target.value || null })}
+                    placeholder={L.tenant}
+                    className="min-w-0 flex-1 rounded-lg border border-hair px-1.5 py-1.5 text-[11px]"
+                  />
+                  <button
+                    onClick={() =>
+                      updateOffice(u.id, { status: u.status === "rented" ? "available" : "rented" })
+                    }
+                    className={cx(
+                      "rounded-full px-2 py-1 text-[9.5px] font-semibold",
+                      u.status === "rented" ? "bg-tint text-accent" : "bg-[#eaf3ec] text-success",
+                    )}
+                  >
+                    {u.status === "rented" ? L.rented : L.available}
+                  </button>
+                  <button onClick={() => deleteOffice(u.id)} className="text-[11px] font-semibold text-edit">
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div key={u.id} className="flex items-center gap-2.5 border-t border-hair pt-2.5">
+                  <span className="w-9 flex-none text-[11.5px] font-bold">{u.unit_no}</span>
+                  <span className="flex-1 text-[11px] text-muted">
+                    {u.size_m2} m² · {u.tenant_name || "—"}
+                  </span>
                   <span className="text-[11px] font-semibold">{kd(u.monthly_rent ?? 0, lang as "en")}</span>
-                )}
-                <span
-                  className={cx(
-                    "rounded-full px-2 py-1 text-[9.5px] font-semibold",
-                    u.status === "rented" ? "bg-tint text-accent" : "bg-[#eaf3ec] text-success",
-                  )}
-                >
-                  {u.status === "rented" ? t.rented : t.available}
-                </span>
-              </div>
-            ))}
+                  <span
+                    className={cx(
+                      "rounded-full px-2 py-1 text-[9.5px] font-semibold",
+                      u.status === "rented" ? "bg-tint text-accent" : "bg-[#eaf3ec] text-success",
+                    )}
+                  >
+                    {u.status === "rented" ? L.rented : L.available}
+                  </span>
+                </div>
+              ),
+            )}
+
+            {edit && <AddOfficeForm labels={L} onAdd={(d) => addOffice(tw.id, d)} />}
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function AddPropertyForm({
+  labels: L,
+  onAdd,
+}: {
+  labels: Record<string, string>;
+  onAdd: (draft: Partial<Tower>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [nameEn, setNameEn] = useState("");
+  const [nameAr, setNameAr] = useState("");
+  const [priceEn, setPriceEn] = useState("");
+  const [image, setImage] = useState(IMG_OPTIONS[2]);
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="rounded-2xl border border-dashed border-edit bg-[#fbf7f5] py-3 text-[12px] font-semibold text-accent"
+      >
+        {L.addProp}
+      </button>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2 rounded-2xl border border-dashed border-edit bg-[#fbf7f5] p-3">
+      <input value={nameEn} onChange={(e) => setNameEn(e.target.value)} placeholder={L.nameEn} className="rounded-lg border border-hair px-2.5 py-2 text-[12px]" />
+      <input value={nameAr} onChange={(e) => setNameAr(e.target.value)} placeholder={L.nameAr} dir="rtl" className="rounded-lg border border-hair px-2.5 py-2 text-[12px]" />
+      <div className="flex gap-2">
+        <input value={priceEn} onChange={(e) => setPriceEn(e.target.value)} placeholder={L.price} className="flex-1 rounded-lg border border-hair px-2.5 py-2 text-[12px]" />
+        <select value={image} onChange={(e) => setImage(e.target.value)} className="w-28 rounded-lg border border-hair px-1 py-2 text-[11px]">
+          {IMG_OPTIONS.map((src) => (
+            <option key={src} value={src}>{src.split("/").pop()?.replace(".png", "")}</option>
+          ))}
+        </select>
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={() => {
+            onAdd({ name_en: nameEn, name_ar: nameAr, price_label_en: priceEn, price_label_ar: priceEn, image });
+            setNameEn(""); setNameAr(""); setPriceEn(""); setOpen(false);
+          }}
+          className="flex-1 rounded-lg bg-accent py-2.5 text-[12px] font-semibold text-screen"
+        >
+          {L.save}
+        </button>
+        <button onClick={() => setOpen(false)} className="rounded-lg border border-hair px-3 py-2.5 text-[12px] font-semibold text-muted">
+          ✕
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AddOfficeForm({
+  labels: L,
+  onAdd,
+}: {
+  labels: Record<string, string>;
+  onAdd: (d: { unit_no: string; size_m2: string; monthly_rent: string; status: string }) => void;
+}) {
+  const [unit, setUnit] = useState("");
+  const [size, setSize] = useState("");
+  const [rent, setRent] = useState("");
+  return (
+    <div className="flex items-center gap-1.5 border-t border-dashed border-edit pt-2.5">
+      <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder={L.unit} className="w-14 rounded-lg border border-hair px-1.5 py-1.5 text-[11px]" />
+      <input value={size} onChange={(e) => setSize(e.target.value)} placeholder={L.size} className="w-12 rounded-lg border border-hair px-1.5 py-1.5 text-[11px]" />
+      <input value={rent} onChange={(e) => setRent(e.target.value)} placeholder={L.rent} className="w-16 rounded-lg border border-hair px-1.5 py-1.5 text-[11px]" />
+      <button
+        onClick={() => { onAdd({ unit_no: unit, size_m2: size, monthly_rent: rent, status: "available" }); setUnit(""); setSize(""); setRent(""); }}
+        className="flex-1 rounded-lg bg-accent py-1.5 text-[11px] font-semibold text-screen"
+      >
+        {L.addOff}
+      </button>
     </div>
   );
 }
