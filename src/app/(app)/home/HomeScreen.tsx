@@ -96,7 +96,9 @@ export default function HomeScreen({
                 </div>
               </div>
               <div className="rounded-full border border-screen/35 bg-screen/15 px-2.5 py-1.5 text-[10px] font-semibold text-screen">
-                {t.waitlistBadge}
+                {alhamrah.units_available > 0
+                  ? `${alhamrah.units_available} ${t.available}`
+                  : t.waitlistBadge}
               </div>
             </div>
           </Link>

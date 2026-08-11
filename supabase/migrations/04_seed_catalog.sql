@@ -1,8 +1,10 @@
 -- ============ SEED CATALOG ============
 insert into public.towers (id,name_en,name_ar,tier_en,tier_ar,sub_en,sub_ar,price_label_en,price_label_ar,image,units_total,units_available,sort) values
-('alhamrah','AlHamrah Tower','برج الحمراء','ELITE','النخبة','Elite suites · 26–35 m² · fully rented','أجنحة النخبة · ٢٦–٣٥ م² · مؤجَّر بالكامل','KD 885+','885 د.ك+','/assets/office-luxury.png',7,0,1),
-('khaleejia','Khaleejia Tower','برج الخليجية','SMART','اقتصادي','Smart offices · Kuwait City · fully rented','مكاتب اقتصادية · مدينة الكويت · مؤجَّر بالكامل','KD 325+','325 د.ك+','/assets/office-economic.png',50,0,2),
-('salmiya','Salmiya — Salem Al-Mubarak','السالمية — شارع سالم المبارك','STARTER','مبتدئ','Starter offices · 15 m² · 6 of 28 available','مكاتب مبتدئة · ١٥ م² · 6 من 28 متاح','KD 250+','250 د.ك+','/assets/office-glass.png',28,6,3);
+-- units_total / units_available are DERIVED from office rows by a trigger (see migration 10);
+-- the values below are just initial placeholders and get recomputed on the first office change.
+('alhamrah','AlHamrah Tower','برج الحمراء','ELITE','النخبة','Elite suites · 26–35 m²','أجنحة النخبة · ٢٦–٣٥ م²','KD 885+','885 د.ك+','/assets/office-luxury.png',0,0,1),
+('khaleejia','Khaleejia Tower','برج الخليجية','SMART','اقتصادي','Smart offices · Kuwait City','مكاتب اقتصادية · مدينة الكويت','KD 325+','325 د.ك+','/assets/office-economic.png',0,0,2),
+('salmiya','Salmiya — Salem Al-Mubarak','السالمية — شارع سالم المبارك','STARTER','مبتدئ','Starter offices · 15 m²','مكاتب مبتدئة · ١٥ م²','KD 250+','250 د.ك+','/assets/office-glass.png',0,0,3);
 
 insert into public.offices (id,tower_id,unit_no,size_m2,monthly_rent,tenant_name,status,sort) values
 ('ah-701','alhamrah','701',35,1250.000,'Alghanim Ventures','rented',1),
