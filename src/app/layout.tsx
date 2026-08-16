@@ -3,8 +3,8 @@ import { Cormorant_Garamond, Instrument_Sans, Amiri } from "next/font/google";
 import "./globals.css";
 import { LangProvider } from "@/lib/i18n/LangProvider";
 import { SettingsProvider } from "@/lib/SettingsProvider";
-import { createClient } from "@/lib/supabase/server";
-import { resolveTheme, DEFAULT_SETTINGS, type SiteSettings } from "@/lib/theme";
+import { getSiteSettings } from "@/lib/settings.server";
+import { resolveTheme } from "@/lib/theme";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -23,11 +23,16 @@ const amiri = Amiri({
   variable: "--font-amiri",
 });
 
-export const metadata: Metadata = {
-  title: "Masarik Incubators — Where capital meets conviction",
-  description:
-    "Kuwait business incubator: office space across three towers, mentorship, services, events, member offers and funding.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const s = await getSiteSettings();
+  const brand = s.brand_name || "Masarik";
+  return {
+    title: s.tagline ? `${brand} — ${s.tagline}` : `${brand} — Where capital meets conviction`,
+    description:
+      "Kuwait business incubator: office space across three towers, mentorship, services, events, member offers and funding.",
+    icons: s.icon_url ? { icon: s.icon_url, apple: s.icon_url } : undefined,
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#541724",
@@ -42,14 +47,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   // Load the super admin's appearance choices and apply them site-wide (no flash).
-  let settings: SiteSettings = DEFAULT_SETTINGS;
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase.from("site_settings").select("*").eq("id", "default").single();
-    if (data) settings = { ...DEFAULT_SETTINGS, ...data };
-  } catch {
-    /* fall back to defaults */
-  }
+  const settings = await getSiteSettings();
   const theme = resolveTheme(settings);
 
   return (

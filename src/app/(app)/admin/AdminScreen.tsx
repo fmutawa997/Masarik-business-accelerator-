@@ -8,6 +8,7 @@ import { kd } from "@/lib/format";
 import { cx, Label, Btn, Diamond } from "@/components/ui";
 import { PaymentBadge } from "@/components/PaymentBadge";
 import { ImageUpload } from "@/components/ImageUpload";
+import { useSettings } from "@/lib/SettingsProvider";
 import { DISPLAY_FONTS, BODY_FONTS, DEFAULT_SETTINGS, type SiteSettings } from "@/lib/theme";
 import type {
   Tower, Office, Waitlist, LeaseRequest, Booking, FundmeApp, EventRow, Offer, Expert, PaymentStatus,
@@ -23,6 +24,7 @@ export default function AdminScreen(props: Props) {
   const { t, lang } = useLang();
   const router = useRouter();
   const supabase = useSupabase();
+  const settings = useSettings();
   const isSuper = props.role === "super";
 
   const allTabs = ["overview", "offices", "waitlist", "fundme", "events", "offers", "payments", "appearance"];
@@ -53,7 +55,7 @@ export default function AdminScreen(props: Props) {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-[11px] font-semibold tracking-[0.22em] text-screen/55">
-              MASARIK · {isSuper ? t.roleSuper : t.roleStaff}
+              {settings.brand_name || "MASARIK"} · {isSuper ? t.roleSuper : t.roleStaff}
             </div>
             <div className="mt-1 font-display text-[21px] font-semibold text-screen">{t.admTitle}</div>
           </div>
@@ -832,7 +834,7 @@ function AppearanceAdmin({ lang }: { lang: string }) {
   const ar = lang === "ar";
   const L = ar
     ? {
-        theme: "الألوان والخطوط", brand: "العلامة والشعار", brandName: "اسم العلامة", tagline: "الشعار النصي", logo: "الشعار", uploadLogo: "رفع شعار", removeLogo: "إزالة",
+        theme: "الألوان والخطوط", brand: "العلامة والشعار", brandName: "اسم العلامة", tagline: "الشعار النصي", logo: "الشعار", uploadLogo: "رفع شعار", removeLogo: "إزالة", appIcon: "أيقونة التطبيق", uploadIcon: "رفع أيقونة", iconHint: "تُستخدم كأيقونة الموقع وعند الإضافة للشاشة الرئيسية (مربعة، 512×512).",
         mName: "الاسم", mRole: "المسمى", mBio: "نبذة", mPrice: "السعر (د.ك)",
         accent: "اللون الأساسي", accentDark: "الأساسي الغامق", pageBg: "خلفية الصفحة",
         display: "خط العناوين", body: "خط النص", ambiance: "الأجواء", density: "الكثافة",
@@ -841,7 +843,7 @@ function AppearanceAdmin({ lang }: { lang: string }) {
         mentors: "صور الخبراء", upload: "رفع صورة", uploading: "جارٍ الرفع…", note: "تُطبَّق تغييرات المظهر على كامل الموقع لكل الزوار.",
       }
     : {
-        theme: "Colours & fonts", brand: "Brand & logo", brandName: "Brand name", tagline: "Tagline", logo: "Logo", uploadLogo: "Upload logo", removeLogo: "Remove",
+        theme: "Colours & fonts", brand: "Brand & logo", brandName: "Brand name", tagline: "Tagline", logo: "Logo", uploadLogo: "Upload logo", removeLogo: "Remove", appIcon: "App icon", uploadIcon: "Upload icon", iconHint: "Used as the browser favicon and the home-screen (PWA) icon — square, 512×512.",
         mName: "Name", mRole: "Role", mBio: "Bio", mPrice: "Price (KD)",
         accent: "Primary colour", accentDark: "Primary (dark)", pageBg: "Page background",
         display: "Headings font", body: "Body font", ambiance: "Ambiance", density: "Density",
@@ -874,11 +876,12 @@ function AppearanceAdmin({ lang }: { lang: string }) {
       accent: s.accent, accent_dark: s.accent_dark, page_bg: s.page_bg,
       font_display: s.font_display, font_body: s.font_body,
       ambiance: s.ambiance, density: s.density,
-      brand_name: s.brand_name, tagline: s.tagline, logo_url: s.logo_url,
+      brand_name: s.brand_name, tagline: s.tagline, logo_url: s.logo_url, icon_url: s.icon_url,
       updated_at: new Date().toISOString(),
     }).eq("id", "default");
-    setBusy(false); setSaved(true);
-    router.refresh(); // re-render with the new theme applied
+    setSaved(true);
+    // Full reload so the new theme/brand/icon apply everywhere immediately.
+    window.location.reload();
   }
 
   async function resetDefault() {
@@ -926,6 +929,24 @@ function AppearanceAdmin({ lang }: { lang: string }) {
               </button>
             )}
           </div>
+        </div>
+        <div>
+          <Label>{L.appIcon}</Label>
+          <div className="mt-1 flex items-center gap-3">
+            {s.icon_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={s.icon_url} alt="icon" className="h-10 w-10 rounded-[10px] object-cover" />
+            ) : (
+              <span className="text-[11px] text-muted">—</span>
+            )}
+            <ImageUpload folder="icons" label={L.uploadIcon} onUploaded={(url) => set("icon_url", url)} />
+            {s.icon_url && (
+              <button onClick={() => setS((p) => ({ ...p, icon_url: null }))} className="text-[10.5px] font-semibold text-edit">
+                {L.removeLogo}
+              </button>
+            )}
+          </div>
+          <p className="mt-1.5 text-[10px] leading-relaxed text-muted">{L.iconHint}</p>
         </div>
       </div>
 

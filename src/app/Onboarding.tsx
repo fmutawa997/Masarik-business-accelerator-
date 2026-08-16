@@ -57,8 +57,9 @@ export default function Onboarding() {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={settings.logo_url} alt={brand} className="mb-4 h-10 w-auto object-contain" />
           ) : (
-            <div className="mb-4 text-[13px] font-semibold tracking-[0.28em] text-accent">
-              {brand} · مسارك
+            <div className="mb-4 text-[13px] font-semibold tracking-[0.22em] text-accent">
+              {brand}
+              <span className="text-accent/60"> · {settings.tagline || "مسارك"}</span>
             </div>
           )}
           <h1 className="font-display text-[32px] font-medium leading-[1.15] lg:text-[46px]">
