@@ -18,7 +18,7 @@ export function TabBar() {
   ];
 
   return (
-    <div className="flex flex-none items-center justify-around border-t border-hair bg-surface px-2.5 pb-1.5 pt-3">
+    <div className="flex flex-none items-center justify-around border-t border-hair bg-surface px-2.5 pb-1.5 pt-3 lg:hidden">
       {tabs.map((tab) => {
         const active = pathname === tab.href || pathname.startsWith(tab.href + "/");
         return (

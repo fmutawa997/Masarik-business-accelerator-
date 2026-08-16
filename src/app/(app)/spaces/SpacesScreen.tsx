@@ -8,8 +8,9 @@ import type { Tower } from "@/lib/types";
 export default function SpacesScreen({ towers }: { towers: Tower[] }) {
   const { t, lang } = useLang();
   return (
-    <div className="flex flex-col gap-3 px-5 py-4">
-      <div className="font-display text-[25px] font-semibold">{t.ourSpaces}</div>
+    <div className="flex flex-col gap-3 px-5 py-4 lg:px-8 lg:py-8">
+      <div className="font-display text-[25px] font-semibold lg:text-[32px]">{t.ourSpaces}</div>
+      <div className="grid gap-3 lg:grid-cols-2">
       {towers.map((tw) => {
         const pct = tw.units_total ? (1 - tw.units_available / tw.units_total) * 100 : 100;
         const availLabel =
@@ -50,6 +51,7 @@ export default function SpacesScreen({ towers }: { towers: Tower[] }) {
           </Link>
         );
       })}
+      </div>
     </div>
   );
 }
