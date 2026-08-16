@@ -15,9 +15,10 @@ export default function ServicesPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-2.5 px-5 py-4">
-      <div className="font-display text-[25px] font-semibold">{t.services}</div>
+    <div className="flex flex-col gap-2.5 px-5 py-4 lg:px-8 lg:py-8">
+      <div className="font-display text-[25px] font-semibold lg:text-[32px]">{t.services}</div>
 
+      <div className="grid gap-2.5 lg:grid-cols-2">
       {/* Free business setup banner → routes to AI advisor */}
       <Link href="/ai" className="flex items-center gap-3 rounded-2xl bg-accent-dark p-4">
         <div className="flex-1">
@@ -46,7 +47,9 @@ export default function ServicesPage() {
         </div>
         <span className="flip-rtl text-muted">›</span>
       </Link>
+      </div>
 
+      <div className="grid gap-2.5 lg:grid-cols-2">
       {rows.map((r) => (
         <Link
           key={r.href}
@@ -63,6 +66,7 @@ export default function ServicesPage() {
           <span className="flip-rtl text-muted">›</span>
         </Link>
       ))}
+      </div>
 
       {/* Call banner */}
       <div className="flex items-center gap-3 rounded-2xl border-[1.5px] border-dashed border-edit bg-[#fbf7f5] p-3.5">

@@ -12,10 +12,11 @@ export default function ExpertsScreen({ experts }: { experts: Expert[] }) {
   const { start, busy } = usePay();
 
   return (
-    <div className="flex flex-col gap-3 px-5 py-4">
+    <div className="flex flex-col gap-3 px-5 py-4 lg:px-8 lg:py-8">
       <BackHeader title={t.expTitle} backHref="/services" />
       <p className="text-[12px] leading-relaxed text-muted">{t.expSub}</p>
 
+      <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
       {experts.map((ex) => {
         const skills = lang === "ar" ? ex.skills_ar : ex.skills_en;
         const consultCode = ex.id === "fa" ? "consult-fa" : "consult-aa";
@@ -61,6 +62,7 @@ export default function ExpertsScreen({ experts }: { experts: Expert[] }) {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

@@ -25,7 +25,7 @@ function Inner({ packages }: { packages: Service[] }) {
   const list = packages.filter((p) => p.category === cat);
 
   return (
-    <div className="flex flex-col gap-2.5 px-5 py-4">
+    <div className="flex flex-col gap-2.5 px-5 py-4 lg:px-8 lg:py-8">
       <BackHeader title={t.packages} backHref="/services" />
 
       <div className="flex gap-1.5">
@@ -34,6 +34,7 @@ function Inner({ packages }: { packages: Service[] }) {
         ))}
       </div>
 
+      <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
       {list.map((p) => {
         const isOpen = open === p.code;
         const feats = lang === "ar" ? p.features_ar : p.features_en;
@@ -81,6 +82,7 @@ function Inner({ packages }: { packages: Service[] }) {
           </div>
         );
       })}
+      </div>
       <p className="text-center text-[10.5px] leading-relaxed text-muted">{t.pkgPayNote}</p>
     </div>
   );

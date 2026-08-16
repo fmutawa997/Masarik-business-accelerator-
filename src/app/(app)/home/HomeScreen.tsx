@@ -68,7 +68,7 @@ export default function HomeScreen({
       </div>
 
       {/* Body */}
-      <div className="flex flex-col gap-4 px-5 py-4">
+      <div className="flex flex-col gap-4 px-5 py-4 lg:px-8 lg:py-6">
         {/* Quick actions */}
         <div className="grid grid-cols-2 gap-2.5">
           {quick.map((q) => (

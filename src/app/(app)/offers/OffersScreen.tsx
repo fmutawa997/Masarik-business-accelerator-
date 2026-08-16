@@ -8,9 +8,10 @@ import type { Offer } from "@/lib/types";
 export default function OffersScreen({ offers }: { offers: Offer[] }) {
   const { t, lang } = useLang();
   return (
-    <div className="flex flex-col gap-3 px-5 py-4">
+    <div className="flex flex-col gap-3 px-5 py-4 lg:px-8 lg:py-8">
       <BackHeader title={t.offersTitle} backHref="/home" />
       <p className="text-[12px] leading-relaxed text-muted">{t.offersSub}</p>
+      <div className="grid gap-3 lg:grid-cols-3">
       {offers.map((o) => (
         <div key={o.id} className="overflow-hidden rounded-2xl border border-hair bg-surface">
           <div className="relative h-[110px]">
@@ -35,6 +36,7 @@ export default function OffersScreen({ offers }: { offers: Offer[] }) {
           </div>
         </div>
       ))}
+      </div>
       <p className="text-center text-[10.5px] text-muted">{t.offMemberNote}</p>
     </div>
   );

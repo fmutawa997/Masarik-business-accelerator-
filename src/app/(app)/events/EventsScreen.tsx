@@ -36,12 +36,12 @@ export default function EventsScreen({
   }
 
   return (
-    <div className="flex flex-col gap-3 px-5 py-4">
-      <div className="font-display text-[25px] font-semibold">{t.events}</div>
+    <div className="flex flex-col gap-3 px-5 py-4 lg:px-8 lg:py-8">
+      <div className="font-display text-[25px] font-semibold lg:text-[32px]">{t.events}</div>
 
       {/* Featured */}
       {featured && (
-        <div className="relative h-[150px] overflow-hidden rounded-2xl">
+        <div className="relative h-[150px] overflow-hidden rounded-2xl lg:h-[280px]">
           <Image src={featured.image} alt={featured.title_en} fill className="object-cover" />
           <div className="scrim pointer-events-none absolute inset-0" />
           <div className="absolute inset-x-3.5 bottom-3 flex items-end justify-between">
@@ -67,6 +67,7 @@ export default function EventsScreen({
       )}
 
       {/* List */}
+      <div className="grid gap-3 lg:grid-cols-2">
       {events.map((ev) => {
         const paid = ev.price_kwd != null && ev.service_code;
         const isGoing = rsvps.includes(ev.id);
@@ -108,6 +109,7 @@ export default function EventsScreen({
           </div>
         );
       })}
+      </div>
       <p className="text-center text-[10.5px] text-muted">{t.ticketNote}</p>
     </div>
   );
