@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    // Allow admin-uploaded images served from Supabase Storage.
+    remotePatterns: [{ protocol: "https", hostname: "**.supabase.co" }],
+  },
 };
 
 export default nextConfig;

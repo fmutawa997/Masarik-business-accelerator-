@@ -7,8 +7,9 @@ import { useSupabase } from "@/lib/supabase/useSupabase";
 import { kd } from "@/lib/format";
 import { cx, Label, Btn, Diamond } from "@/components/ui";
 import { PaymentBadge } from "@/components/PaymentBadge";
+import { DISPLAY_FONTS, BODY_FONTS, DEFAULT_SETTINGS, type SiteSettings } from "@/lib/theme";
 import type {
-  Tower, Office, Waitlist, LeaseRequest, Booking, FundmeApp, EventRow, Offer, PaymentStatus,
+  Tower, Office, Waitlist, LeaseRequest, Booking, FundmeApp, EventRow, Offer, Expert, PaymentStatus,
 } from "@/lib/types";
 
 type Props = {
@@ -23,7 +24,7 @@ export default function AdminScreen(props: Props) {
   const supabase = useSupabase();
   const isSuper = props.role === "super";
 
-  const allTabs = ["overview", "offices", "waitlist", "fundme", "events", "offers", "payments"];
+  const allTabs = ["overview", "offices", "waitlist", "fundme", "events", "offers", "payments", "appearance"];
   const tabs = isSuper ? allTabs : ["offices", "waitlist"];
   const [tab, setTab] = useState(tabs[0]);
   const [edit, setEdit] = useState(false);
@@ -110,6 +111,7 @@ export default function AdminScreen(props: Props) {
           <OffersAdmin offers={props.offers} edit={edit && isSuper} t={t} lang={lang} />
         )}
         {tab === "payments" && <PaymentsAdmin lang={lang} />}
+        {tab === "appearance" && <AppearanceAdmin lang={lang} />}
       </div>
     </div>
   );
@@ -802,6 +804,172 @@ function PaymentsAdmin({ lang }: { lang: string }) {
       </div>
 
       <p className="flex items-center gap-1.5 text-[10.5px] leading-relaxed text-muted"><Diamond size={6} /> {L.note}</p>
+    </div>
+  );
+}
+
+/* ---------- Appearance (super admin: theme, fonts, feel, mentor photos) ---------- */
+function AppearanceAdmin({ lang }: { lang: string }) {
+  const supabase = useSupabase();
+  const router = useRouter();
+  const ar = lang === "ar";
+  const L = ar
+    ? {
+        theme: "الهوية والألوان", accent: "اللون الأساسي", accentDark: "الأساسي الغامق", pageBg: "خلفية الصفحة",
+        display: "خط العناوين", body: "خط النص", ambiance: "الأجواء", density: "الكثافة",
+        warm: "دافئ", cool: "بارد", noir: "داكن", compact: "مضغوط", normal: "عادي", comfortable: "مريح",
+        save: "حفظ التغييرات", saving: "جارٍ الحفظ…", saved: "تم الحفظ ✓ — يُطبَّق الآن", reset: "إعادة الافتراضي",
+        mentors: "صور الخبراء", upload: "رفع صورة", uploading: "جارٍ الرفع…", note: "تُطبَّق تغييرات المظهر على كامل الموقع لكل الزوار.",
+      }
+    : {
+        theme: "Brand & colours", accent: "Primary colour", accentDark: "Primary (dark)", pageBg: "Page background",
+        display: "Headings font", body: "Body font", ambiance: "Ambiance", density: "Density",
+        warm: "Warm", cool: "Cool", noir: "Noir", compact: "Compact", normal: "Default", comfortable: "Comfortable",
+        save: "Save changes", saving: "Saving…", saved: "Saved ✓ — applied", reset: "Reset to default",
+        mentors: "Mentor photos", upload: "Upload photo", uploading: "Uploading…", note: "Appearance changes apply across the whole site, for every visitor.",
+      };
+
+  const [s, setS] = useState<SiteSettings>(DEFAULT_SETTINGS);
+  const [experts, setExperts] = useState<Expert[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: cfg }, { data: ex }] = await Promise.all([
+        supabase.from("site_settings").select("*").eq("id", "default").single(),
+        supabase.from("experts").select("*").order("sort"),
+      ]);
+      if (cfg) setS({ ...DEFAULT_SETTINGS, ...cfg });
+      if (ex) setExperts(ex as Expert[]);
+    })();
+  }, [supabase]);
+
+  const set = (k: keyof SiteSettings, v: string) => setS((p) => ({ ...p, [k]: v }));
+
+  async function save() {
+    setBusy(true); setSaved(false);
+    await supabase.from("site_settings").update({
+      accent: s.accent, accent_dark: s.accent_dark, page_bg: s.page_bg,
+      font_display: s.font_display, font_body: s.font_body,
+      ambiance: s.ambiance, density: s.density, updated_at: new Date().toISOString(),
+    }).eq("id", "default");
+    setBusy(false); setSaved(true);
+    router.refresh(); // re-render with the new theme applied
+  }
+
+  async function resetDefault() {
+    setS(DEFAULT_SETTINGS);
+  }
+
+  async function uploadPhoto(expert: Expert, file: File) {
+    setUploadingId(expert.id);
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `experts/${expert.id}-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("site-media").upload(path, file, { upsert: true });
+    if (!upErr) {
+      const { data: pub } = supabase.storage.from("site-media").getPublicUrl(path);
+      await supabase.from("experts").update({ avatar: pub.publicUrl }).eq("id", expert.id);
+      setExperts((list) => list.map((e) => (e.id === expert.id ? { ...e, avatar: pub.publicUrl } : e)));
+      router.refresh();
+    }
+    setUploadingId(null);
+  }
+
+  const chip = (active: boolean) =>
+    cx("rounded-full border px-3 py-1.5 text-[11px] font-semibold",
+      active ? "border-accent bg-accent text-screen" : "border-hair text-muted");
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[11.5px] leading-relaxed text-muted"><Diamond size={6} /> {L.note}</p>
+
+      {/* Theme */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-hair bg-surface p-4">
+        <div className="font-display text-[16px] font-semibold">{L.theme}</div>
+        <div className="grid grid-cols-3 gap-2">
+          <ColorField label={L.accent} value={s.accent} onChange={(v) => set("accent", v)} />
+          <ColorField label={L.accentDark} value={s.accent_dark} onChange={(v) => set("accent_dark", v)} />
+          <ColorField label={L.pageBg} value={s.page_bg} onChange={(v) => set("page_bg", v)} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label>{L.display}</Label>
+            <select value={s.font_display} onChange={(e) => set("font_display", e.target.value)}
+              className="mt-1 w-full rounded-lg border border-hair px-2 py-2 text-[12px]">
+              {DISPLAY_FONTS.map((f) => <option key={f.name} value={f.name}>{f.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <Label>{L.body}</Label>
+            <select value={s.font_body} onChange={(e) => set("font_body", e.target.value)}
+              className="mt-1 w-full rounded-lg border border-hair px-2 py-2 text-[12px]">
+              {BODY_FONTS.map((f) => <option key={f.name} value={f.name}>{f.name}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <Label>{L.ambiance}</Label>
+          <div className="mt-1 flex gap-1.5">
+            {(["warm", "cool", "noir"] as const).map((a) => (
+              <button key={a} onClick={() => set("ambiance", a)} className={chip(s.ambiance === a)}>
+                {a === "warm" ? L.warm : a === "cool" ? L.cool : L.noir}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <Label>{L.density}</Label>
+          <div className="mt-1 flex gap-1.5">
+            {(["compact", "default", "comfortable"] as const).map((d) => (
+              <button key={d} onClick={() => set("density", d)} className={chip(s.density === d)}>
+                {d === "compact" ? L.compact : d === "default" ? L.normal : L.comfortable}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Btn onClick={save} disabled={busy} className="flex-1">{busy ? L.saving : L.save}</Btn>
+          <Btn onClick={resetDefault} variant="outline">{L.reset}</Btn>
+        </div>
+        {saved && <div className="text-[11.5px] text-success">{L.saved}</div>}
+      </div>
+
+      {/* Mentor photos */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-hair bg-surface p-4">
+        <div className="font-display text-[16px] font-semibold">{L.mentors}</div>
+        {experts.map((ex) => (
+          <div key={ex.id} className="flex items-center gap-3 border-t border-hair pt-3 first:border-0 first:pt-0">
+            {/* plain img — storage URL, avoids next/image config needs in admin */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={ex.avatar} alt={ex.name_en} className="h-12 w-12 flex-none rounded-full object-cover" />
+            <div className="flex-1">
+              <div className="text-[13px] font-semibold">{ar ? ex.name_ar : ex.name_en}</div>
+              <div className="text-[10.5px] text-muted">{ar ? ex.role_ar : ex.role_en}</div>
+            </div>
+            <label className={cx("cursor-pointer rounded-full border border-accent px-3 py-1.5 text-[10.5px] font-semibold text-accent", uploadingId === ex.id && "opacity-50")}>
+              {uploadingId === ex.id ? L.uploading : L.upload}
+              <input type="file" accept="image/*" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(ex, f); }} />
+            </label>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <div className="mt-1 flex items-center gap-1.5 rounded-lg border border-hair px-2 py-1.5">
+        <input type="color" value={value} onChange={(e) => onChange(e.target.value)}
+          className="h-6 w-6 flex-none cursor-pointer rounded border-0 bg-transparent p-0" />
+        <input value={value} onChange={(e) => onChange(e.target.value)}
+          className="w-full bg-transparent text-[11px] uppercase" />
+      </div>
     </div>
   );
 }
