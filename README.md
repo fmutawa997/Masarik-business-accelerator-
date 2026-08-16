@@ -163,9 +163,16 @@ the row.
 - ✅ **Audit log** → every `payment_status` change writes a `payment_events` row (source =
   initiate | webhook | cron)
 
-### Secrets & webhook registration (for your own MyFatoorah account)
+### Connect the gateway from the admin (super admin)
+A super admin can connect the gateway in‑app: **Admin → Payments** → paste the MyFatoorah key,
+pick Sandbox/Production, **Test & Save**. The key is validated against MyFatoorah, then stored in a
+**locked `payment_config` table** (RLS on, no client policies, privileges revoked) that only the
+edge functions' service role can read — the key is never returned to the browser. The payment
+functions read the key from there, falling back to the env secret, then the sandbox token.
+
+### Secrets & webhook registration (alternative: set it yourself)
 The functions fall back to MyFatoorah's **public sandbox token**, so the demo runs out of the box.
-For your own account (or production), set secrets and register the webhook:
+Instead of (or in addition to) the in‑app connector, you can set secrets and register the webhook:
 
 ```bash
 supabase secrets set MYFATOORAH_API_KEY="<your key>" \

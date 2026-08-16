@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useLang } from "@/lib/i18n/LangProvider";
 import { useSupabase } from "@/lib/supabase/useSupabase";
 import { kd } from "@/lib/format";
-import { cx } from "@/components/ui";
+import { cx, Label, Btn, Diamond } from "@/components/ui";
 import { PaymentBadge } from "@/components/PaymentBadge";
 import type {
   Tower, Office, Waitlist, LeaseRequest, Booking, FundmeApp, EventRow, Offer, PaymentStatus,
@@ -23,7 +23,7 @@ export default function AdminScreen(props: Props) {
   const supabase = useSupabase();
   const isSuper = props.role === "super";
 
-  const allTabs = ["overview", "offices", "waitlist", "fundme", "events", "offers"];
+  const allTabs = ["overview", "offices", "waitlist", "fundme", "events", "offers", "payments"];
   const tabs = isSuper ? allTabs : ["offices", "waitlist"];
   const [tab, setTab] = useState(tabs[0]);
   const [edit, setEdit] = useState(false);
@@ -109,6 +109,7 @@ export default function AdminScreen(props: Props) {
         {tab === "offers" && (
           <OffersAdmin offers={props.offers} edit={edit && isSuper} t={t} lang={lang} />
         )}
+        {tab === "payments" && <PaymentsAdmin lang={lang} />}
       </div>
     </div>
   );
@@ -667,6 +668,140 @@ function OffersAdmin({
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ---------- Payments (super admin: connect the gateway) ---------- */
+type PayStatus = {
+  connected: boolean;
+  mode: string;
+  provider: string;
+  base_url?: string;
+  last4: string | null;
+  webhook_secret_set?: boolean;
+  updated_at?: string | null;
+};
+
+function PaymentsAdmin({ lang }: { lang: string }) {
+  const supabase = useSupabase();
+  const ar = lang === "ar";
+  const L = ar
+    ? {
+        title: "بوابة الدفع", sub: "اربط حساب ماي فاتورة. المفتاح يُحفظ على الخادم فقط ولا يظهر في المتصفح أبدًا.",
+        connected: "متصل", notConnected: "غير متصل — يُستخدم مفتاح الاختبار التجريبي",
+        key: "مفتاح API", keyPh: "الصق مفتاح ماي فاتورة", mode: "الوضع",
+        sandbox: "اختبار", production: "إنتاج", secret: "سر الويبهوك (اختياري)",
+        save: "تحقق واحفظ", saving: "جارٍ التحقق…", saved: "تم الحفظ ✓",
+        webhookTitle: "رابط الويبهوك", webhookNote: "سجّل هذا الرابط في لوحة ماي فاتورة (الإشعارات/الويبهوك).",
+        note: "المفتاح مخزّن في جدول مقفل لا يقرؤه أي متصفح — فقط دوال الخادم.",
+      }
+    : {
+        title: "Payment gateway", sub: "Connect your MyFatoorah account. The key is stored server‑side only and never shown in the browser.",
+        connected: "Connected", notConnected: "Not connected — using the sandbox test key",
+        key: "API key", keyPh: "Paste your MyFatoorah key", mode: "Mode",
+        sandbox: "Sandbox", production: "Production", secret: "Webhook secret (optional)",
+        save: "Test & Save", saving: "Validating…", saved: "Saved ✓",
+        webhookTitle: "Webhook URL", webhookNote: "Register this URL in the MyFatoorah dashboard (Notifications / Webhook).",
+        note: "The key lives in a locked table no browser can read — only the server functions.",
+      };
+
+  const [status, setStatus] = useState<PayStatus | null>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [mode, setMode] = useState<"sandbox" | "production">("sandbox");
+  const [secret, setSecret] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.functions.invoke("payment-config", { body: { action: "status" } });
+      if (data) {
+        setStatus(data as PayStatus);
+        if (data.mode) setMode(data.mode);
+      }
+    })();
+  }, [supabase]);
+
+  async function save() {
+    setBusy(true); setErr(null); setMsg(null);
+    const { data, error } = await supabase.functions.invoke("payment-config", {
+      body: { action: "save", api_key: apiKey, mode, webhook_secret: secret },
+    });
+    setBusy(false);
+    if (error) {
+      let m = error.message;
+      try { const j = await (error as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.(); if (j?.error) m = j.error; } catch { /* ignore */ }
+      setErr(m); return;
+    }
+    if (data?.error) { setErr(data.error); return; }
+    setStatus((s) => ({ ...(s as PayStatus), connected: true, mode: data.mode, last4: data.last4, webhook_secret_set: data.webhook_secret_set }));
+    setApiKey(""); setSecret(""); setMsg(L.saved);
+  }
+
+  const webhookUrl =
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/payment-webhook` +
+    (status?.webhook_secret_set ? "?secret=<your-secret>" : "");
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <div className="font-display text-[18px] font-semibold">{L.title}</div>
+        <p className="mt-1 text-[11.5px] leading-relaxed text-muted">{L.sub}</p>
+      </div>
+
+      {/* status */}
+      <div className="flex items-center gap-3 rounded-2xl border border-hair bg-surface p-3.5">
+        <span className={cx("h-2.5 w-2.5 flex-none rounded-full", status?.connected ? "bg-success" : "bg-muted/40")} />
+        <div className="flex-1 text-[12.5px]">
+          {status?.connected ? (
+            <span><b>{L.connected}</b> · MyFatoorah · ····{status.last4} · <span className="uppercase">{status.mode}</span></span>
+          ) : (
+            <span className="text-muted">{L.notConnected}</span>
+          )}
+        </div>
+      </div>
+
+      {/* form */}
+      <div className="flex flex-col gap-2.5 rounded-2xl border border-hair bg-surface p-3.5">
+        <label className="block">
+          <Label>{L.key}</Label>
+          <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={L.keyPh}
+            className="mt-1 w-full rounded-lg border border-hair px-2.5 py-2 text-[12px]" />
+        </label>
+        <div>
+          <Label>{L.mode}</Label>
+          <div className="mt-1 flex gap-1.5">
+            {(["sandbox", "production"] as const).map((m) => (
+              <button key={m} onClick={() => setMode(m)}
+                className={cx("rounded-full border px-3 py-1.5 text-[11px] font-semibold",
+                  mode === m ? "border-accent bg-accent text-screen" : "border-hair text-muted")}>
+                {m === "sandbox" ? L.sandbox : L.production}
+              </button>
+            ))}
+          </div>
+        </div>
+        <label className="block">
+          <Label>{L.secret}</Label>
+          <input value={secret} onChange={(e) => setSecret(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-hair px-2.5 py-2 text-[12px]" />
+        </label>
+        {err && <div className="text-[11.5px] text-accent">{err}</div>}
+        {msg && <div className="text-[11.5px] text-success">{msg}</div>}
+        <Btn onClick={save} disabled={busy || !apiKey} className="w-full">
+          {busy ? L.saving : L.save}
+        </Btn>
+      </div>
+
+      {/* webhook */}
+      <div className="rounded-2xl border border-hair bg-surface p-3.5">
+        <Label>{L.webhookTitle}</Label>
+        <div className="mt-1.5 break-all rounded-lg bg-tint px-2.5 py-2 font-mono text-[10.5px] text-accent">{webhookUrl}</div>
+        <p className="mt-2 text-[10.5px] leading-relaxed text-muted">{L.webhookNote}</p>
+      </div>
+
+      <p className="flex items-center gap-1.5 text-[10.5px] leading-relaxed text-muted"><Diamond size={6} /> {L.note}</p>
     </div>
   );
 }
