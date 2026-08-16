@@ -7,6 +7,7 @@ import { useSupabase } from "@/lib/supabase/useSupabase";
 import { kd } from "@/lib/format";
 import { cx, Label, Btn, Diamond } from "@/components/ui";
 import { PaymentBadge } from "@/components/PaymentBadge";
+import { ImageUpload } from "@/components/ImageUpload";
 import { DISPLAY_FONTS, BODY_FONTS, DEFAULT_SETTINGS, type SiteSettings } from "@/lib/theme";
 import type {
   Tower, Office, Waitlist, LeaseRequest, Booking, FundmeApp, EventRow, Offer, Expert, PaymentStatus,
@@ -281,16 +282,18 @@ function Offices({
                       dir="rtl"
                     />
                     <select
-                      defaultValue={tw.image ?? IMG_OPTIONS[0]}
-                      onChange={(e) => updateTower(tw.id, { image: e.target.value })}
-                      className="w-24 rounded-lg border border-hair px-1 py-1.5 text-[10px]"
+                      defaultValue={IMG_OPTIONS.includes(tw.image ?? "") ? (tw.image ?? IMG_OPTIONS[0]) : ""}
+                      onChange={(e) => e.target.value && updateTower(tw.id, { image: e.target.value })}
+                      className="w-20 rounded-lg border border-hair px-1 py-1.5 text-[10px]"
                     >
+                      {!IMG_OPTIONS.includes(tw.image ?? "") && <option value="">custom</option>}
                       {IMG_OPTIONS.map((src) => (
                         <option key={src} value={src}>
                           {src.split("/").pop()?.replace(".png", "")}
                         </option>
                       ))}
                     </select>
+                    <ImageUpload folder="towers" label="↑" onUploaded={(url) => updateTower(tw.id, { image: url })} className="!px-2.5" />
                   </div>
                   <div className="flex gap-1.5">
                     <input
@@ -587,6 +590,10 @@ function EventsAdmin({
     await supabase.from("events").delete().eq("id", id);
     setRows((r) => r.filter((e) => e.id !== id));
   }
+  async function setImage(id: string, url: string) {
+    setRows((r) => r.map((x) => (x.id === id ? { ...x, image: url } : x)));
+    await supabase.from("events").update({ image: url }).eq("id", id);
+  }
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -608,6 +615,9 @@ function EventsAdmin({
           <span className="text-[12px] font-bold text-accent">
             {lang === "ar" ? e.price_label_ar : e.price_label_en}
           </span>
+          {edit && (
+            <ImageUpload folder="events" label="↑" onUploaded={(url) => setImage(e.id, url)} className="!px-2.5" />
+          )}
           {edit && (
             <button onClick={() => remove(e.id)} className="text-[10px] font-semibold text-edit">
               ✕
@@ -642,6 +652,10 @@ function OffersAdmin({
     await supabase.from("offers").delete().eq("id", id);
     setRows((r) => r.filter((o) => o.id !== id));
   }
+  async function setImage(id: string, url: string) {
+    setRows((r) => r.map((x) => (x.id === id ? { ...x, image: url } : x)));
+    await supabase.from("offers").update({ image: url }).eq("id", id);
+  }
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -663,6 +677,9 @@ function OffersAdmin({
             <div className="text-[10.5px] text-muted">{lang === "ar" ? o.cat_ar : o.cat_en}</div>
           </div>
           <span className="font-display text-[13px] font-bold text-accent">{o.discount}</span>
+          {edit && (
+            <ImageUpload folder="offers" label="↑" onUploaded={(url) => setImage(o.id, url)} className="!px-2.5" />
+          )}
           {edit && (
             <button onClick={() => remove(o.id)} className="text-[10px] font-semibold text-edit">
               ✕
@@ -815,14 +832,18 @@ function AppearanceAdmin({ lang }: { lang: string }) {
   const ar = lang === "ar";
   const L = ar
     ? {
-        theme: "الهوية والألوان", accent: "اللون الأساسي", accentDark: "الأساسي الغامق", pageBg: "خلفية الصفحة",
+        theme: "الألوان والخطوط", brand: "العلامة والشعار", brandName: "اسم العلامة", tagline: "الشعار النصي", logo: "الشعار", uploadLogo: "رفع شعار", removeLogo: "إزالة",
+        mName: "الاسم", mRole: "المسمى", mBio: "نبذة", mPrice: "السعر (د.ك)",
+        accent: "اللون الأساسي", accentDark: "الأساسي الغامق", pageBg: "خلفية الصفحة",
         display: "خط العناوين", body: "خط النص", ambiance: "الأجواء", density: "الكثافة",
         warm: "دافئ", cool: "بارد", noir: "داكن", compact: "مضغوط", normal: "عادي", comfortable: "مريح",
         save: "حفظ التغييرات", saving: "جارٍ الحفظ…", saved: "تم الحفظ ✓ — يُطبَّق الآن", reset: "إعادة الافتراضي",
         mentors: "صور الخبراء", upload: "رفع صورة", uploading: "جارٍ الرفع…", note: "تُطبَّق تغييرات المظهر على كامل الموقع لكل الزوار.",
       }
     : {
-        theme: "Brand & colours", accent: "Primary colour", accentDark: "Primary (dark)", pageBg: "Page background",
+        theme: "Colours & fonts", brand: "Brand & logo", brandName: "Brand name", tagline: "Tagline", logo: "Logo", uploadLogo: "Upload logo", removeLogo: "Remove",
+        mName: "Name", mRole: "Role", mBio: "Bio", mPrice: "Price (KD)",
+        accent: "Primary colour", accentDark: "Primary (dark)", pageBg: "Page background",
         display: "Headings font", body: "Body font", ambiance: "Ambiance", density: "Density",
         warm: "Warm", cool: "Cool", noir: "Noir", compact: "Compact", normal: "Default", comfortable: "Comfortable",
         save: "Save changes", saving: "Saving…", saved: "Saved ✓ — applied", reset: "Reset to default",
@@ -833,7 +854,6 @@ function AppearanceAdmin({ lang }: { lang: string }) {
   const [experts, setExperts] = useState<Expert[]>([]);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -853,7 +873,9 @@ function AppearanceAdmin({ lang }: { lang: string }) {
     await supabase.from("site_settings").update({
       accent: s.accent, accent_dark: s.accent_dark, page_bg: s.page_bg,
       font_display: s.font_display, font_body: s.font_body,
-      ambiance: s.ambiance, density: s.density, updated_at: new Date().toISOString(),
+      ambiance: s.ambiance, density: s.density,
+      brand_name: s.brand_name, tagline: s.tagline, logo_url: s.logo_url,
+      updated_at: new Date().toISOString(),
     }).eq("id", "default");
     setBusy(false); setSaved(true);
     router.refresh(); // re-render with the new theme applied
@@ -863,18 +885,10 @@ function AppearanceAdmin({ lang }: { lang: string }) {
     setS(DEFAULT_SETTINGS);
   }
 
-  async function uploadPhoto(expert: Expert, file: File) {
-    setUploadingId(expert.id);
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `experts/${expert.id}-${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("site-media").upload(path, file, { upsert: true });
-    if (!upErr) {
-      const { data: pub } = supabase.storage.from("site-media").getPublicUrl(path);
-      await supabase.from("experts").update({ avatar: pub.publicUrl }).eq("id", expert.id);
-      setExperts((list) => list.map((e) => (e.id === expert.id ? { ...e, avatar: pub.publicUrl } : e)));
-      router.refresh();
-    }
-    setUploadingId(null);
+  async function updateExpert(id: string, patch: Record<string, unknown>) {
+    setExperts((list) => list.map((e) => (e.id === id ? ({ ...e, ...patch } as Expert) : e)));
+    await supabase.from("experts").update(patch).eq("id", id);
+    router.refresh();
   }
 
   const chip = (active: boolean) =>
@@ -883,7 +897,37 @@ function AppearanceAdmin({ lang }: { lang: string }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[11.5px] leading-relaxed text-muted"><Diamond size={6} /> {L.note}</p>
+      <p className="flex items-center gap-1.5 text-[11.5px] leading-relaxed text-muted"><Diamond size={6} /> {L.note}</p>
+
+      {/* Brand & logo */}
+      <div className="flex flex-col gap-2.5 rounded-2xl border border-hair bg-surface p-4">
+        <div className="font-display text-[16px] font-semibold">{L.brand}</div>
+        <label className="block"><Label>{L.brandName}</Label>
+          <input value={s.brand_name} onChange={(e) => set("brand_name", e.target.value)}
+            className="mt-1 w-full rounded-lg border border-hair px-2.5 py-2 text-[12px]" />
+        </label>
+        <label className="block"><Label>{L.tagline}</Label>
+          <input value={s.tagline} onChange={(e) => set("tagline", e.target.value)} placeholder="BUSINESS INCUBATOR · KUWAIT"
+            className="mt-1 w-full rounded-lg border border-hair px-2.5 py-2 text-[12px]" />
+        </label>
+        <div>
+          <Label>{L.logo}</Label>
+          <div className="mt-1 flex items-center gap-3">
+            {s.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={s.logo_url} alt="logo" className="h-9 w-auto max-w-[120px] rounded bg-ink/5 object-contain px-1" />
+            ) : (
+              <span className="text-[11px] text-muted">—</span>
+            )}
+            <ImageUpload folder="brand" label={L.uploadLogo} onUploaded={(url) => set("logo_url", url)} />
+            {s.logo_url && (
+              <button onClick={() => setS((p) => ({ ...p, logo_url: null }))} className="text-[10.5px] font-semibold text-edit">
+                {L.removeLogo}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Theme */}
       <div className="flex flex-col gap-3 rounded-2xl border border-hair bg-surface p-4">
@@ -936,23 +980,26 @@ function AppearanceAdmin({ lang }: { lang: string }) {
         {saved && <div className="text-[11.5px] text-success">{L.saved}</div>}
       </div>
 
-      {/* Mentor photos */}
+      {/* Mentors — photo + full editing */}
       <div className="flex flex-col gap-3 rounded-2xl border border-hair bg-surface p-4">
         <div className="font-display text-[16px] font-semibold">{L.mentors}</div>
         {experts.map((ex) => (
-          <div key={ex.id} className="flex items-center gap-3 border-t border-hair pt-3 first:border-0 first:pt-0">
-            {/* plain img — storage URL, avoids next/image config needs in admin */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={ex.avatar} alt={ex.name_en} className="h-12 w-12 flex-none rounded-full object-cover" />
-            <div className="flex-1">
-              <div className="text-[13px] font-semibold">{ar ? ex.name_ar : ex.name_en}</div>
-              <div className="text-[10.5px] text-muted">{ar ? ex.role_ar : ex.role_en}</div>
+          <div key={ex.id} className="flex flex-col gap-2 border-t border-hair pt-3 first:border-0 first:pt-0">
+            <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={ex.avatar} alt={ex.name_en} className="h-12 w-12 flex-none rounded-full object-cover" />
+              <div className="flex-1 text-[11px] text-muted">{L.upload} →</div>
+              <ImageUpload folder="experts" label={L.upload} onUploaded={(url) => updateExpert(ex.id, { avatar: url })} />
             </div>
-            <label className={cx("cursor-pointer rounded-full border border-accent px-3 py-1.5 text-[10.5px] font-semibold text-accent", uploadingId === ex.id && "opacity-50")}>
-              {uploadingId === ex.id ? L.uploading : L.upload}
-              <input type="file" accept="image/*" className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(ex, f); }} />
-            </label>
+            <div className="grid grid-cols-2 gap-1.5">
+              <input defaultValue={ex.name_en} onBlur={(e) => updateExpert(ex.id, { name_en: e.target.value })} placeholder={`${L.mName} (EN)`} className="rounded-lg border border-hair px-2 py-1.5 text-[11px]" />
+              <input defaultValue={ex.name_ar} onBlur={(e) => updateExpert(ex.id, { name_ar: e.target.value })} placeholder={`${L.mName} (AR)`} dir="rtl" className="rounded-lg border border-hair px-2 py-1.5 text-[11px]" />
+              <input defaultValue={ex.role_en} onBlur={(e) => updateExpert(ex.id, { role_en: e.target.value })} placeholder={`${L.mRole} (EN)`} className="rounded-lg border border-hair px-2 py-1.5 text-[11px]" />
+              <input defaultValue={ex.role_ar} onBlur={(e) => updateExpert(ex.id, { role_ar: e.target.value })} placeholder={`${L.mRole} (AR)`} dir="rtl" className="rounded-lg border border-hair px-2 py-1.5 text-[11px]" />
+            </div>
+            <textarea defaultValue={ex.bio_en} onBlur={(e) => updateExpert(ex.id, { bio_en: e.target.value })} placeholder={`${L.mBio} (EN)`} rows={2} className="rounded-lg border border-hair px-2 py-1.5 text-[11px]" />
+            <textarea defaultValue={ex.bio_ar} onBlur={(e) => updateExpert(ex.id, { bio_ar: e.target.value })} placeholder={`${L.mBio} (AR)`} dir="rtl" rows={2} className="rounded-lg border border-hair px-2 py-1.5 text-[11px]" />
+            <input defaultValue={ex.price_kwd} onBlur={(e) => updateExpert(ex.id, { price_kwd: Number(e.target.value) || 0 })} placeholder={L.mPrice} className="w-28 rounded-lg border border-hair px-2 py-1.5 text-[11px] font-semibold" />
           </div>
         ))}
       </div>

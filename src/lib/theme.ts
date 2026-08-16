@@ -9,6 +9,9 @@ export type SiteSettings = {
   font_body: string;
   ambiance: "warm" | "cool" | "noir";
   density: "compact" | "default" | "comfortable";
+  brand_name: string;
+  tagline: string;
+  logo_url: string | null;
 };
 
 export const DEFAULT_SETTINGS: SiteSettings = {
@@ -19,6 +22,9 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   font_body: "Instrument Sans",
   ambiance: "warm",
   density: "default",
+  brand_name: "MASARIK",
+  tagline: "",
+  logo_url: null,
 };
 
 // name → Google Fonts css2 family param. "Cormorant Garamond" / "Instrument Sans"

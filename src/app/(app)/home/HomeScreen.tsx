@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useLang } from "@/lib/i18n/LangProvider";
 import { useProfile } from "@/lib/ProfileProvider";
+import { useSettings } from "@/lib/SettingsProvider";
 import { SectionTitle, Diamond, LangToggle } from "@/components/ui";
 import type { Tower, EventRow } from "@/lib/types";
 
@@ -16,6 +17,7 @@ export default function HomeScreen({
 }) {
   const { t, lang } = useLang();
   const profile = useProfile();
+  const settings = useSettings();
   const firstName =
     (profile.display_name || profile.full_name || "").trim().split(/\s+/)[0] ||
     (lang === "ar" ? "صديقنا" : "there");
@@ -37,11 +39,16 @@ export default function HomeScreen({
       <div className="flex flex-col gap-3 bg-accent-dark px-5 pb-5 pt-6">
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
-            <span className="text-[13px] font-semibold tracking-[0.26em] text-screen">
-              {t.brand}
-            </span>
+            {settings.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={settings.logo_url} alt={settings.brand_name || t.brand} className="h-6 w-auto object-contain" />
+            ) : (
+              <span className="text-[13px] font-semibold tracking-[0.26em] text-screen">
+                {settings.brand_name || t.brand}
+              </span>
+            )}
             <span className="text-[9.5px] font-medium tracking-[0.1em] text-screen/60">
-              {t.tagline}
+              {settings.tagline || t.tagline}
             </span>
           </div>
           <LangToggle dark />

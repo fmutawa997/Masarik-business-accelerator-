@@ -17,6 +17,8 @@ export const STR = {
     onbSub: "Capital, workspace, mentorship, licensing and market access — several paths, one house, built by operators who run real businesses in Kuwait.",
     onbCta: "Create account",
     haveAccount: "I already have an account",
+    exploreDemo: "Explore as a demo",
+    demoUnavailable: "Demo mode isn't enabled yet — ask the owner to turn on anonymous sign-ins in Supabase.",
     // auth
     signIn: "Sign in",
     signUp: "Sign up",
@@ -232,6 +234,8 @@ export const STR = {
     onbSub: "رأس مال، مساحات عمل، إرشاد، تراخيص ووصول للسوق — عدة مسارات في بيت واحد، بناه مشغّلون يديرون أعمالًا حقيقية في الكويت.",
     onbCta: "إنشاء حساب",
     haveAccount: "لديّ حساب بالفعل",
+    exploreDemo: "استعرض كتجربة",
+    demoUnavailable: "وضع التجربة غير مفعّل بعد — اطلب من المالك تفعيل الدخول المجهول في Supabase.",
     signIn: "تسجيل الدخول",
     signUp: "إنشاء حساب",
     signOut: "تسجيل الخروج",

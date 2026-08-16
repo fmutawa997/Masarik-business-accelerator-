@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Instrument_Sans, Amiri } from "next/font/google";
 import "./globals.css";
 import { LangProvider } from "@/lib/i18n/LangProvider";
+import { SettingsProvider } from "@/lib/SettingsProvider";
 import { createClient } from "@/lib/supabase/server";
 import { resolveTheme, DEFAULT_SETTINGS, type SiteSettings } from "@/lib/theme";
 
@@ -60,7 +61,9 @@ export default async function RootLayout({
       <body
         className={`${cormorant.variable} ${instrument.variable} ${amiri.variable}`}
       >
-        <LangProvider>{children}</LangProvider>
+        <SettingsProvider settings={settings}>
+          <LangProvider>{children}</LangProvider>
+        </SettingsProvider>
       </body>
     </html>
   );
