@@ -10,6 +10,7 @@ import { PaymentBadge } from "@/components/PaymentBadge";
 import { ImageUpload } from "@/components/ImageUpload";
 import { useSettings } from "@/lib/SettingsProvider";
 import { DISPLAY_FONTS, BODY_FONTS, DEFAULT_SETTINGS, type SiteSettings } from "@/lib/theme";
+import { LANDING_DEFAULT, LINK_OPTIONS, type LandingContent, type PageButton } from "@/lib/pages";
 import type {
   Tower, Office, Waitlist, LeaseRequest, Booking, FundmeApp, EventRow, Offer, Expert, PaymentStatus,
 } from "@/lib/types";
@@ -27,7 +28,7 @@ export default function AdminScreen(props: Props) {
   const settings = useSettings();
   const isSuper = props.role === "super";
 
-  const allTabs = ["overview", "offices", "waitlist", "fundme", "events", "offers", "payments", "appearance"];
+  const allTabs = ["overview", "offices", "waitlist", "fundme", "events", "offers", "payments", "appearance", "pages"];
   const tabs = isSuper ? allTabs : ["offices", "waitlist"];
   const [tab, setTab] = useState(tabs[0]);
   const [edit, setEdit] = useState(false);
@@ -115,6 +116,7 @@ export default function AdminScreen(props: Props) {
         )}
         {tab === "payments" && <PaymentsAdmin lang={lang} />}
         {tab === "appearance" && <AppearanceAdmin lang={lang} />}
+        {tab === "pages" && <PagesAdmin lang={lang} />}
       </div>
     </div>
   );
@@ -1038,6 +1040,151 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
         <input value={value} onChange={(e) => onChange(e.target.value)}
           className="w-full bg-transparent text-[11px] uppercase" />
       </div>
+    </div>
+  );
+}
+
+/* ---------- Pages (super admin: edit page content, images, buttons) ---------- */
+function PagesAdmin({ lang }: { lang: string }) {
+  const supabase = useSupabase();
+  const ar = lang === "ar";
+  const L = ar
+    ? {
+        intro: "حرّر محتوى صفحاتك — النصوص والصور والأزرار. (المظهر يتكيّف تلقائيًا للجوال والكمبيوتر.)",
+        page: "الصفحة", landing: "الصفحة الرئيسية (الترحيب)", headline: "العنوان", subtitle: "الوصف",
+        hero: "صورة الغلاف", upload: "رفع صورة", demo: "زر «استعرض كتجربة»", buttons: "الأزرار",
+        addBtn: "+ إضافة زر", label: "النص", link: "الرابط", style: "النمط", custom: "رابط مخصص…",
+        save: "حفظ ونشر", saving: "جارٍ الحفظ…", remove: "حذف",
+        primary: "أساسي", outline: "محدد", ghost: "شفاف", dark: "غامق",
+      }
+    : {
+        intro: "Edit your pages — text, images and buttons. (The layout adapts to mobile & desktop automatically.)",
+        page: "Page", landing: "Landing (welcome)", headline: "Headline", subtitle: "Description",
+        hero: "Hero image", upload: "Upload image", demo: "Show “Explore as a demo” button", buttons: "Buttons",
+        addBtn: "+ Add button", label: "Label", link: "Link", style: "Style", custom: "Custom URL…",
+        save: "Save & publish", saving: "Saving…", remove: "Remove",
+        primary: "Primary", outline: "Outline", ghost: "Ghost", dark: "Dark",
+      };
+
+  const [c, setC] = useState<LandingContent>(LANDING_DEFAULT);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("page_content").select("content").eq("page", "landing").single();
+      if (data?.content) setC({ ...LANDING_DEFAULT, ...data.content });
+    })();
+  }, [supabase]);
+
+  const setText = (field: "headline" | "subtitle", l: "en" | "ar", v: string) =>
+    setC((p) => ({ ...p, [field]: { en: "", ar: "", ...p[field], [l]: v } }));
+
+  function updateBtn(i: number, patch: Partial<PageButton>) {
+    setC((p) => {
+      const buttons = [...(p.buttons ?? [])];
+      buttons[i] = { ...buttons[i], ...patch };
+      return { ...p, buttons };
+    });
+  }
+  const addBtn = () =>
+    setC((p) => ({
+      ...p,
+      buttons: [...(p.buttons ?? []), { label: { en: "Button", ar: "زر" }, href: "/signup", variant: "primary" }],
+    }));
+  const removeBtn = (i: number) =>
+    setC((p) => ({ ...p, buttons: (p.buttons ?? []).filter((_, j) => j !== i) }));
+
+  async function save() {
+    setBusy(true);
+    await supabase.from("page_content").update({ content: c, updated_at: new Date().toISOString() }).eq("page", "landing");
+    window.location.reload();
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="flex items-center gap-1.5 text-[11.5px] leading-relaxed text-muted"><Diamond size={6} /> {L.intro}</p>
+
+      <div className="rounded-2xl border border-hair bg-surface p-4">
+        <Label>{L.page}</Label>
+        <div className="mt-1 inline-flex rounded-full bg-tint px-3 py-1.5 text-[12px] font-semibold text-accent">
+          {L.landing}
+        </div>
+      </div>
+
+      {/* Text */}
+      <div className="flex flex-col gap-2.5 rounded-2xl border border-hair bg-surface p-4">
+        <div>
+          <Label>{L.headline}</Label>
+          <input value={c.headline?.en ?? ""} onChange={(e) => setText("headline", "en", e.target.value)} placeholder="EN" className="mt-1 w-full rounded-lg border border-hair px-2.5 py-2 text-[13px]" />
+          <input value={c.headline?.ar ?? ""} onChange={(e) => setText("headline", "ar", e.target.value)} placeholder="AR" dir="rtl" className="mt-1.5 w-full rounded-lg border border-hair px-2.5 py-2 text-[13px]" />
+        </div>
+        <div>
+          <Label>{L.subtitle}</Label>
+          <textarea value={c.subtitle?.en ?? ""} onChange={(e) => setText("subtitle", "en", e.target.value)} placeholder="EN" rows={2} className="mt-1 w-full rounded-lg border border-hair px-2.5 py-2 text-[12px]" />
+          <textarea value={c.subtitle?.ar ?? ""} onChange={(e) => setText("subtitle", "ar", e.target.value)} placeholder="AR" dir="rtl" rows={2} className="mt-1.5 w-full rounded-lg border border-hair px-2.5 py-2 text-[12px]" />
+        </div>
+      </div>
+
+      {/* Hero image */}
+      <div className="rounded-2xl border border-hair bg-surface p-4">
+        <Label>{L.hero}</Label>
+        <div className="mt-1.5 flex items-center gap-3">
+          {c.heroImage && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={c.heroImage} alt="hero" className="h-14 w-24 rounded-lg object-cover" />
+          )}
+          <ImageUpload folder="pages" label={L.upload} onUploaded={(url) => setC((p) => ({ ...p, heroImage: url }))} />
+        </div>
+      </div>
+
+      {/* Demo toggle */}
+      <button
+        onClick={() => setC((p) => ({ ...p, showDemo: !p.showDemo }))}
+        className="flex items-center justify-between rounded-2xl border border-hair bg-surface p-4 text-start"
+      >
+        <span className="text-[13px] font-medium">{L.demo}</span>
+        <span className={cx("relative h-6 w-10 rounded-full transition-colors", c.showDemo ? "bg-accent" : "bg-muted/30")}>
+          <span className={cx("absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all", c.showDemo ? "start-[18px]" : "start-0.5")} />
+        </span>
+      </button>
+
+      {/* Buttons */}
+      <div className="flex flex-col gap-2.5 rounded-2xl border border-hair bg-surface p-4">
+        <div className="flex items-center justify-between">
+          <div className="font-display text-[15px] font-semibold">{L.buttons}</div>
+          <button onClick={addBtn} className="rounded-full border border-accent px-3 py-1.5 text-[10.5px] font-semibold text-accent">{L.addBtn}</button>
+        </div>
+        {(c.buttons ?? []).map((b, i) => (
+          <div key={i} className="flex flex-col gap-1.5 rounded-xl border border-hair p-2.5">
+            <div className="flex gap-1.5">
+              <input value={b.label?.en ?? ""} onChange={(e) => updateBtn(i, { label: { en: e.target.value, ar: b.label?.ar ?? "" } })} placeholder={`${L.label} EN`} className="flex-1 rounded-lg border border-hair px-2 py-1.5 text-[11px]" />
+              <input value={b.label?.ar ?? ""} onChange={(e) => updateBtn(i, { label: { en: b.label?.en ?? "", ar: e.target.value } })} placeholder={`${L.label} AR`} dir="rtl" className="flex-1 rounded-lg border border-hair px-2 py-1.5 text-[11px]" />
+            </div>
+            <div className="flex gap-1.5">
+              <select
+                value={LINK_OPTIONS.includes(b.href) ? b.href : "__custom"}
+                onChange={(e) => updateBtn(i, { href: e.target.value === "__custom" ? "" : e.target.value })}
+                className="flex-1 rounded-lg border border-hair px-2 py-1.5 text-[11px]"
+              >
+                {LINK_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                <option value="__custom">{L.custom}</option>
+              </select>
+              <select value={b.variant} onChange={(e) => updateBtn(i, { variant: e.target.value as PageButton["variant"] })} className="w-24 rounded-lg border border-hair px-1 py-1.5 text-[11px]">
+                <option value="primary">{L.primary}</option>
+                <option value="outline">{L.outline}</option>
+                <option value="ghost">{L.ghost}</option>
+                <option value="dark">{L.dark}</option>
+              </select>
+              <button onClick={() => removeBtn(i)} className="text-[11px] font-semibold text-edit">✕</button>
+            </div>
+            {!LINK_OPTIONS.includes(b.href) && (
+              <input value={b.href} onChange={(e) => updateBtn(i, { href: e.target.value })} placeholder="/path or https://…" className="rounded-lg border border-hair px-2 py-1.5 text-[11px]" />
+            )}
+          </div>
+        ))}
+      </div>
+
+      <Btn onClick={save} disabled={busy} className="w-full">{busy ? L.saving : L.save}</Btn>
     </div>
   );
 }

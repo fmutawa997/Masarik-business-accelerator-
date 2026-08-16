@@ -1,22 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useLang } from "@/lib/i18n/LangProvider";
 import { useSettings } from "@/lib/SettingsProvider";
 import { useSupabase } from "@/lib/supabase/useSupabase";
 import { Btn, LangToggle } from "@/components/ui";
+import { LANDING_DEFAULT, type LandingContent } from "@/lib/pages";
 
-export default function Onboarding() {
-  const { t } = useLang();
+export default function Onboarding({ content }: { content?: LandingContent }) {
+  const { t, lang } = useLang();
   const settings = useSettings();
   const supabase = useSupabase();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  const c = { ...LANDING_DEFAULT, ...(content ?? {}) };
   const brand = settings.brand_name || t.brand;
+  const headline = c.headline?.[lang] || t.onbTitle;
+  const subtitle = c.subtitle?.[lang] || t.onbSub;
+  const heroImage = c.heroImage || "/assets/lounge.png";
+  const buttons = c.buttons ?? LANDING_DEFAULT.buttons!;
 
   async function exploreDemo() {
     setBusy(true);
@@ -33,10 +39,9 @@ export default function Onboarding() {
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-screen lg:flex-row">
-      {/* Image side (top on mobile, right on desktop) */}
+      {/* Image side */}
       <div className="relative h-[42vh] w-full flex-none lg:order-2 lg:h-auto lg:min-h-[100dvh] lg:w-[54%]">
-        <Image src="/assets/lounge.png" alt="Masarik space" fill priority className="object-cover" />
-        {/* bottom fade on mobile, left fade on desktop */}
+        <Image src={heroImage} alt="Masarik space" fill priority className="object-cover" />
         <div
           className="pointer-events-none absolute inset-0 lg:hidden"
           style={{ background: "linear-gradient(180deg,rgba(58,15,24,.12) 0%,rgba(248,246,244,0) 55%,var(--screen) 100%)" }}
@@ -63,20 +68,23 @@ export default function Onboarding() {
             </div>
           )}
           <h1 className="font-display text-[32px] font-medium leading-[1.15] lg:text-[46px]">
-            {t.onbTitle}
+            {headline}
           </h1>
-          <p className="mt-4 text-[14px] leading-[1.7] text-muted lg:text-[15px]">{t.onbSub}</p>
+          <p className="mt-4 text-[14px] leading-[1.7] text-muted lg:text-[15px]">{subtitle}</p>
           {err && <p className="mt-3 text-[12px] text-accent">{err}</p>}
           <div className="mt-7 flex flex-col gap-2.5">
-            <Btn href="/signup" className="w-full py-4">
-              {t.onbCta}
-            </Btn>
-            <Btn onClick={exploreDemo} disabled={busy} variant="outline" className="w-full py-3.5">
-              {busy ? t.loading : t.exploreDemo}
-            </Btn>
-            <Btn href="/login" variant="ghost" className="w-full py-2 text-[12.5px]">
-              {t.haveAccount}
-            </Btn>
+            {buttons.map((b, i) => (
+              <Fragment key={i}>
+                <Btn href={b.href} variant={b.variant} className="w-full py-3.5">
+                  {b.label?.[lang] || b.label?.en}
+                </Btn>
+                {i === 0 && c.showDemo && (
+                  <Btn onClick={exploreDemo} disabled={busy} variant="outline" className="w-full py-3.5">
+                    {busy ? t.loading : t.exploreDemo}
+                  </Btn>
+                )}
+              </Fragment>
+            ))}
           </div>
         </div>
       </div>
